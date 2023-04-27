@@ -45,6 +45,9 @@ class InfoToPassToPaymentApplication(models.Model):
 
     def get_currency(self):
         return self.currency
+    
+    def set_paid_status(self, status: bool):
+        self.is_paid = status
 
 ```
 
