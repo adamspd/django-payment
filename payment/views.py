@@ -132,6 +132,6 @@ def payment_success(request, object_id, order_id):
     # Email the user
     send_email(
         recipient_list=[payment_info.get_user_email()], subject="Payment successful",
-        template_url='email_sender/thank_you_email.html', context=email_context
+        template_url='email_sender/payment_email.html', context=email_context
     )
     return render(request, 'payment/success.html', context=context)
