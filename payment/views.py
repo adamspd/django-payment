@@ -1,3 +1,5 @@
+import datetime
+
 import requests
 import json
 
@@ -6,6 +8,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from payment.email_sender import send_email
 from payment import settings
 from payment.models import Payment
 from payment.settings import PAYMENT_MODEL, PAYMENT_BASE_TEMPLATE, PAYMENT_WEBSITE_NAME, PAYMENT_REDIRECT_SUCCESS_URL
@@ -87,7 +90,6 @@ def capture_order(request, order_id):  # Change this line
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
-
 def payment(request, object_id, id_request):
     print(f"object_id {object_id} id_request {id_request}")
     payment_info = get_object_or_404(PAYMENT_OBJECT, pk=object_id)
@@ -110,6 +112,7 @@ def payment(request, object_id, id_request):
 
 def payment_success(request, object_id, order_id):
     payment_info = get_object_or_404(PAYMENT_OBJECT, pk=object_id)
+    payment_info.set_paid_status(status=True)
     context = {
         "PAYMENT_BASE_TEMPLATE": PAYMENT_BASE_TEMPLATE,
         "PAYMENT_WEBSITE_NAME": PAYMENT_WEBSITE_NAME,
@@ -117,4 +120,18 @@ def payment_success(request, object_id, order_id):
         "appointment": payment_info,
         "order_id": order_id,
     }
+    message = f"Thank you for your payment, it's been received and your booking is now confirmed. We're excited to " \
+              f"have you on board! Your order # is {order_id}."
+    email_context = {
+        'first_name': payment_info.get_user().first_name,
+        'message': message,
+        'current_year': datetime.datetime.now().year,
+        'company': PAYMENT_WEBSITE_NAME,
+        "order_id": order_id
+    }
+    # Email the user
+    send_email(
+        recipient_list=[payment_info.get_user().email], subject="Payment successful",
+        template_url='email_sender/thank_you_email.html', context=email_context
+    )
     return render(request, 'payment/success.html', context=context)
