@@ -45,7 +45,7 @@ class InfoToPassToPaymentApplication(models.Model):
 
     def get_currency(self):
         return self.currency
-    
+
     def set_paid_status(self, status: bool):
         self.is_paid = status
 
@@ -60,7 +60,7 @@ class InfoToPassToPaymentApplication(models.Model):
     def get_user_name(self):
         # return the name of the user who is going to pay
         pass
-    
+
     def get_user_email(self):
         # return the email of the user who is going to pay
         pass
@@ -94,6 +94,9 @@ PAYMENT_BASE_TEMPLATE = 'base_templates/base.html'  # or your own base template 
 PAYMENT_WEBSITE_NAME = 'My Website'  # or your website name
 PAYMENT_MODEL = 'your_app_name.InfoToPassToPaymentApplication'  # Replace with your app and model name
 PAYMENT_REDIRECT_SUCCESS_URL = 'your_app_name:success_view_name'  # Replace with your app and success view name
+
+# Additional to the default email settings
+APP_DEFAULT_FROM_EMAIL = "webmaster@localhost"  # the default from email that you're using
 ```
 
 Follow the instructions in the app's documentation to set up the required views.
