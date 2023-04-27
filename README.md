@@ -49,6 +49,22 @@ class InfoToPassToPaymentApplication(models.Model):
     def set_paid_status(self, status: bool):
         self.is_paid = status
 
+    def get_name(self):
+        # return the name of the service or product
+        pass
+
+    def get_img_url(self):
+        # return the url of the image of the service or product
+        pass
+
+    def get_user_name(self):
+        # return the name of the user who is going to pay
+        pass
+    
+    def get_user_email(self):
+        # return the email of the user who is going to pay
+        pass
+
 ```
 
 This model should represent the information that you want to pass to the payment application. This can include details
