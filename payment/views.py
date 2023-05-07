@@ -100,7 +100,7 @@ def capture_order(request, order_id):  # Change this line
 
 
 def payment(request, object_id, id_request):
-    print(f"object_id {object_id} id_request {id_request}")
+    logging.info(f"object_id {object_id} id_request {id_request}")
     payment_info = get_object_or_404(PAYMENT_OBJECT, pk=object_id)
     environment = settings.PAYMENT_PAYPAL_ENVIRONMENT
     endpoint_url = "https://api-m.sandbox.paypal.com" if environment == "sandbox" else "https://api-m.paypal.com"
@@ -123,6 +123,7 @@ def payment(request, object_id, id_request):
         "total_amount": total_amount,
         "fee_amount": fee_amount,
     }
+    logging.info(f"payment context: {context}")
     return render(request, 'payment/payment.html', context=context)
 
 
@@ -160,11 +161,25 @@ def payment_success(request, object_id, order_id):
         'current_year': datetime.datetime.now().year,
     }
 
+    admin_email_context = {
+        **common_context,
+        'payment_info': payment_info,
+        'linked_object': payment_info.get_linked_object(),
+        'reference_id': payment_info.get_reference_id(),
+        "current_date": payment_info.get_created_at().strftime("%B %d, %Y"),
+        "user_email": object_info.get_user_email(),
+        "status": payment_info.get_payment_status_css_status(),
+    }
+
     # Email the user
+    logging.info(f"Email the user: {context}")
     send_email(
         recipient_list=[object_info.get_user_email()], subject="Payment successful",
         template_url=template_url_email, context=email_context
     )
+    logging.info(f"Notifying admin for payment details: {context}")
+    notify_admin(subject="Payment details for order # {}".format(order_id), template_url="email_sender/notify_admin.html",
+                 context=admin_email_context)
     return render(request, 'payment/success.html', context=context)
 
 
@@ -186,7 +201,4 @@ def payment_details(request, reference_id, object_id, order_id):
         "user_email": user_email,
         "status": payment_.get_payment_status_css_status(),
     }
-    logging.info(f"notifying admin for payment details: {context}")
-    notify_admin(subject="Payment details for order # {}".format(order_id), template_url="email_sender/notify_admin.html",
-                 context=context)
     return render(request, 'payment/payment_details.html', context)
