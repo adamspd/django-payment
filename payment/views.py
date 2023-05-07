@@ -1,17 +1,16 @@
 import datetime
+import json
+import logging
 from decimal import Decimal
 
 import requests
-import json
-import logging
-
 from django.apps import apps
-from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
-from payment.email_sender import send_email, notify_admin
 from payment import settings
+from payment.email_sender import send_email, notify_admin
 from payment.models import Payment
 from payment.settings import PAYMENT_MODEL, PAYMENT_BASE_TEMPLATE, PAYMENT_WEBSITE_NAME, PAYMENT_REDIRECT_SUCCESS_URL, \
     PAYMENT_APPLY_PAYPAL_FEES, DEFAULT_EMAIL_MESSAGE, DEFAULT_EMAIL_PAYMENT_SUCCESS_TEMPLATE

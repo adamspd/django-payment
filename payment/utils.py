@@ -1,7 +1,7 @@
 import base64
+from decimal import Decimal
 
 import requests
-from decimal import Decimal
 
 from payment.settings import PAYMENT_APPLY_PAYPAL_FEES, PAYMENT_SPLIT_PAYPAL_FEES, PAYMENT_FEES
 
