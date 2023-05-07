@@ -1,6 +1,10 @@
 import base64
 
 import requests
+from decimal import Decimal
+
+from payment.settings import PAYMENT_APPLY_PAYPAL_FEES, PAYMENT_SPLIT_PAYPAL_FEES, PAYMENT_FEES
+
 
 def get_paypal_access_token(client_id, client_secret, endpoint_url):
     auth = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("utf-8")
@@ -21,3 +25,46 @@ def generate_client_token(access_token, endpoint_url):
     response = requests.post(f"{endpoint_url}/v1/identity/generate-token", headers=headers)
     data = response.json()
     return data["client_token"]
+
+
+def calculate_fee(amount, payment_type='paypal'):
+    fees = {
+        'paypal': {
+            'percentage': Decimal('0.029'),
+            'fixed': Decimal('0.35')
+        },
+        'credit_card': {
+            'percentage': Decimal('0.021'),
+            'fixed': Decimal('0.35')
+        }
+    }
+
+    if payment_type not in fees:
+        raise ValueError("Invalid payment type. Supported payment types are 'paypal' and 'credit_card'.")
+
+    percentage_fee = fees[payment_type]['percentage']
+    fixed_fee = fees[payment_type]['fixed']
+
+    fee_amount = amount * percentage_fee + fixed_fee
+
+    if PAYMENT_APPLY_PAYPAL_FEES and not PAYMENT_SPLIT_PAYPAL_FEES:
+        # Apply the fee to the amount
+        return fee_amount
+    elif PAYMENT_APPLY_PAYPAL_FEES and PAYMENT_SPLIT_PAYPAL_FEES:
+        # Return the fee amount
+        return fee_amount / 2
+    else:
+        if PAYMENT_FEES is not None and PAYMENT_FEES > 0:
+            fee_amount = amount * Decimal(PAYMENT_FEES)
+        else:
+            fee_amount = Decimal('0.00')
+
+    return fee_amount
+
+
+def calculate_total_amount(amount, payment_type='paypal') -> str:
+    fee_amount = calculate_fee(amount, payment_type)
+    total_amount = amount + fee_amount
+
+    # return decimal format
+    return "{:.2f}".format(total_amount)

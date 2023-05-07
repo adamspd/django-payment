@@ -87,17 +87,117 @@ INSTALLED_APPS = [
 ```python
 # settings.py
 
-PAYMENT_ENVIRONMENT = 'sandbox'  # or 'production'
-PAYMENT_CLIENT_ID = 'your_paypal_client_id'
-PAYMENT_CLIENT_SECRET = 'your_paypal_client_secret'
+# payment settings
+PAYMENT_PAYPAL_ENVIRONMENT = 'sandbox'  # or 'production'
+PAYMENT_PAYPAL_CLIENT_ID = 'your_paypal_client_id'
+PAYMENT_PAYPAL_CLIENT_SECRET = 'your_paypal_client_secret'
+
+# fees
+# if you want to apply the default PayPal fee, set the following to True or add the fee to your model
+PAYMENT_APPLY_PAYPAL_FEES = False  # (2.90% + 0.35$ per transaction, if card 2.10% + 0.35$ as of 2023-05-06) default is False
+PAYMENT_SPLIT_PAYPAL_FEES = False  # split the fees between you and the user (if PAYMENT_APPLY_PAYPAL_FEES = True)  default  is False
+# if you want to apply your own percentage fees (can't have both)
+PAYMENT_FEES = 0.03 if not PAYMENT_APPLY_PAYPAL_FEES else 0.00  # default is 0.00
+
+# basic
 PAYMENT_BASE_TEMPLATE = 'base_templates/base.html'  # or your own base template path
 PAYMENT_WEBSITE_NAME = 'My Website'  # or your website name
 PAYMENT_MODEL = 'your_app_name.InfoToPassToPaymentApplication'  # Replace with your app and model name
 PAYMENT_REDIRECT_SUCCESS_URL = 'your_app_name:success_view_name'  # Replace with your app and success view name
 
 # Additional to the default email settings
-APP_DEFAULT_FROM_EMAIL = "webmaster@localhost"  # the default from email that you're using
+# if the following are not defined, the default templates are applied
+DEFAULT_FROM_EMAIL = "webmaster@localhost"  # the default from email that you're using
+DEFAULT_EMAIL_MESSAGE = None  # leave as None if you want to use the default message in the template
+DEFAULT_EMAIL_PAYMENT_SUCCESS_TEMPLATE = 'template/emails/payment_success.html'  # an example of name
 ```
+
+DEFAULT_EMAIL_MESSAGE is the default message that you want to send to the user, leave empty if you want to
+add one directly in the template or if you want to use the default one in the template which is :
+
+```python
+link = request.build_absolute_uri(payment_info.get_absolute_url())
+message = DEFAULT_EMAIL_MESSAGE or f"Thank you for your payment, it's been received and your booking is now confirmed" \
+                                       f"You can view it by clicking <a href='{link}'>here</a> " \
+                                       f"We're excited to have you on board! Your order # is {order_id}."
+```
+
+The following objects are passed to the email template :
+
+```python
+context = {
+    'first_name': first_name,
+    'company': PAYMENT_WEBSITE_NAME,
+    "order_id": order_id,
+    "payment_info": payment_info,
+    'message': message,
+    'current_year': datetime.datetime.now().year,
+}
+```
+
+payment_info is an object that contains the following attributes :
+
+```python
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.db import models
+
+class PaymentInfo:
+    order_id = models.CharField(max_length=255, unique=True)
+    reference_id = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=3)
+    status = models.CharField(max_length=20)
+    
+    linked_object_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    linked_object_id = models.PositiveIntegerField(null=True, blank=True)
+    linked_object = GenericForeignKey('linked_object_type', 'linked_object_id')
+
+    # meta data
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_order_id(self):
+        return self.order_id
+
+    def get_reference_id(self):
+        return self.reference_id
+
+    def get_amount(self):
+        return self.amount
+
+    def get_currency(self):
+        return self.currency
+
+    def get_status(self):
+        return self.status
+
+    def get_linked_object(self):
+        return self.linked_object
+
+    def get_created_at(self):
+        return self.created_at
+
+    def get_updated_at(self):
+        return self.updated_at
+
+    def get_total_amount(self):
+        return self.amount + self.fee
+    
+    def get_fee(self):
+        return self.fee
+
+    def get_absolute_url(self):
+        # implemented in the payment app
+        pass
+        
+ ```
+
+You can customize the message in the email by not using the object message and directly put your message in the
+template or by adding a changing the default value of the message in the settings.
+
+The attribute in the payment_info object can be used to display the information in your template.
 
 Follow the instructions in the app's documentation to set up the required views.
 

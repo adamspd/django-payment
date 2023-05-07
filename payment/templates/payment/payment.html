@@ -57,12 +57,12 @@
                             </div>
                             <div class="salesTax">
                                 <div>{% trans "Sales Tax" %}</div>
-                                <div>$0.00</div>
+                                <div>${{ fee_amount }}</div>
                             </div>
                             <hr class="second-part">
                             <div class="total">
                                 <div>{% trans "Total" %}</div>
-                                <div>${{ service.get_amount_to_pay }}</div>
+                                <div>${{ total_amount }}</div>
                             </div>
                         </div>
                     </div>
