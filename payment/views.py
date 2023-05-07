@@ -152,7 +152,6 @@ def payment_success(request, object_id, order_id):
                                        f"You can view it by clicking <a href='{link}'>here</a> " \
                                        f"We're excited to have you on board! Your order # is {order_id}."
 
-
     template_url_email = DEFAULT_EMAIL_PAYMENT_SUCCESS_TEMPLATE or 'email_sender/payment_email.html'
 
     email_context = {
@@ -178,7 +177,8 @@ def payment_success(request, object_id, order_id):
         template_url=template_url_email, context=email_context
     )
     logging.info(f"Notifying admin for payment details: {context}")
-    notify_admin(subject="Payment details for order # {}".format(order_id), template_url="email_sender/notify_admin.html",
+    notify_admin(subject="Payment details for order # {}".format(order_id),
+                 template_url="email_sender/notify_admin.html",
                  context=admin_email_context)
     return render(request, 'payment/success.html', context=context)
 
