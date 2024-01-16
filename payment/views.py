@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import sys
 from decimal import Decimal
 
 import requests
@@ -14,30 +15,40 @@ from payment.email_sender import send_email, notify_admin
 from payment.models import Payment
 from payment.settings import PAYMENT_MODEL, PAYMENT_BASE_TEMPLATE, PAYMENT_WEBSITE_NAME, PAYMENT_REDIRECT_SUCCESS_URL, \
     PAYMENT_APPLY_PAYPAL_FEES, DEFAULT_EMAIL_MESSAGE, DEFAULT_EMAIL_PAYMENT_SUCCESS_TEMPLATE
-from payment.utils import get_paypal_access_token, generate_client_token, calculate_total_amount
+from payment.utils import get_paypal_access_token, generate_client_token, calculate_total_amount, get_payment_details
 
 PAYMENT_OBJECT = apps.get_model(PAYMENT_MODEL)
 
-logging.basicConfig(level=logging.INFO)
+# create logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# configure basicConfig with the formatter, log level, and handlers
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p',
+                    level=logging.DEBUG,
+                    handlers=[logging.StreamHandler(sys.stdout)])
 
 
 @csrf_exempt
 def create_order(request, object_id):
     if request.method == 'POST':
+        funding_source = request.GET.get('funding_source', 'paypal')
+        logger.info(f"Funding source received: {funding_source}")
         payment_info = get_object_or_404(PAYMENT_OBJECT, pk=object_id)
         reference_id = f"{payment_info.get_id_request()}"
 
         environment = settings.PAYMENT_PAYPAL_ENVIRONMENT
         ENDPOINT_URL = "https://api-m.sandbox.paypal.com" if environment == "sandbox" else "https://api-m.paypal.com"
         # Prepare the payload
-        logging.info(f"payment_info.get_currency(): {payment_info.get_currency()}")
-        logging.info(f"payment_info.get_amount_to_pay(): {payment_info.get_amount_to_pay()}")
-        logging.info(f"reference_id: {reference_id}")
+        logger.info(f"payment_info.get_currency(): {payment_info.get_currency()}")
+        logger.info(f"payment_info.get_amount_to_pay(): {payment_info.get_amount_to_pay()}")
+        logger.info(f"reference_id: {reference_id}")
 
-        value = calculate_total_amount(payment_info.get_amount_to_pay()) if PAYMENT_APPLY_PAYPAL_FEES else \
+        value = calculate_total_amount(amount=payment_info.get_amount_to_pay(), payment_type=funding_source) if PAYMENT_APPLY_PAYPAL_FEES else \
             str(payment_info.get_amount_to_pay())
         currency = payment_info.get_currency() if payment_info.get_currency() else "USD"
-        logging.info(f"total amount after fee calculation: {currency} {value}")
+        logger.info(f"total amount after fee calculation: {currency} {value}")
 
         payload = {
             "purchase_units": [
@@ -51,6 +62,8 @@ def create_order(request, object_id):
             ],
             "intent": "CAPTURE",
         }
+
+        logger.info(f"payload: {payload}")
 
         access_token = get_paypal_access_token(settings.PAYMENT_PAYPAL_CLIENT_ID, settings.PAYMENT_PAYPAL_CLIENT_SECRET,
                                                ENDPOINT_URL)
@@ -76,7 +89,7 @@ def create_order(request, object_id):
             )
             payment_.linked_object = payment_info
             payment_.save()
-            return JsonResponse({"id": payment_.order_id})
+            return JsonResponse({"id": payment_.order_id, "fee": payment_.get_fee(), "total_amount": payment_.get_total_amount()})
         else:
             return JsonResponse({"error": "Failed to create order"}, status=400)
     else:
@@ -99,7 +112,7 @@ def capture_order(request, order_id):  # Change this line
 
 
 def payment(request, object_id, id_request):
-    logging.info(f"object_id {object_id} id_request {id_request}")
+    logger.info(f"object_id {object_id} id_request {id_request}")
     payment_info = get_object_or_404(PAYMENT_OBJECT, pk=object_id)
     environment = settings.PAYMENT_PAYPAL_ENVIRONMENT
     endpoint_url = "https://api-m.sandbox.paypal.com" if environment == "sandbox" else "https://api-m.paypal.com"
@@ -122,7 +135,7 @@ def payment(request, object_id, id_request):
         "total_amount": total_amount,
         "fee_amount": fee_amount,
     }
-    logging.info(f"payment context: {context}")
+    logger.info(f"payment context: {context}")
     return render(request, 'payment/payment.html', context=context)
 
 
@@ -170,12 +183,12 @@ def payment_success(request, object_id, order_id):
     }
 
     # Email the user
-    logging.info(f"Email the user: {context}")
+    logger.info(f"Email the user: {context}")
     send_email(
         recipient_list=[object_info.get_user_email()], subject="Payment successful",
         template_url=template_url_email, context=email_context
     )
-    logging.info(f"Notifying admin for payment details: {context}")
+    logger.info(f"Notifying admin for payment details: {context}")
     notify_admin(subject="Payment details for order # {}".format(order_id),
                  template_url="email_sender/notify_admin.html",
                  context=admin_email_context)
@@ -187,7 +200,13 @@ def payment_details(request, reference_id, object_id, order_id):
     first_name = object_info.get_user_name()
     user_email = object_info.get_user_email()
     payment_ = get_object_or_404(Payment, order_id=order_id)
-    logging.info(f"payment details: {payment_}")
+    environment = settings.PAYMENT_PAYPAL_ENVIRONMENT
+    endpoint_url = "https://api-m.sandbox.paypal.com" if environment == "sandbox" else "https://api-m.paypal.com"
+    access_token = get_paypal_access_token(settings.PAYMENT_PAYPAL_CLIENT_ID, settings.PAYMENT_PAYPAL_CLIENT_SECRET,
+                                           endpoint_url)
+    client_token = generate_client_token(access_token, endpoint_url)
+    data = get_payment_details(order_id=order_id, access_token=access_token, endpoint_url=endpoint_url)
+    logger.info(f"payment details: {data}")
     linked_object = payment_.linked_object
     context = {
         "PAYMENT_BASE_TEMPLATE": PAYMENT_BASE_TEMPLATE,

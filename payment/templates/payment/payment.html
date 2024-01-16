@@ -58,12 +58,12 @@ Checkout payment for the service {{ service.get_name }}
 </div>
 <div class="salesTax">
     <div>{% trans "Sales Tax" %}</div>
-<div>${{ fee_amount }}</div>
+    <div id="sales-tax-field">${{ fee_amount }}</div>
 </div>
     <hr class="second-part">
 <div class="total">
     <div>{% trans "Total" %}</div>
-<div>${{ total_amount }}</div>
+    <div id="sales-total-amount">${{ total_amount }}</div>
 </div>
 </div>
 </div>
@@ -82,44 +82,62 @@ Checkout payment for the service {{ service.get_name }}
 {% endblock %}
 {% block customJS %}
 <script>
-    const object_id = "{{ object_id }}";
-    const id_request = "{{ id_request }}";
+const object_id = "{{ object_id }}";
+const id_request = "{{ id_request }}";
 
-    const createOrderURLTemplate = "{% url 'payment:create_order' object_id=0 %}";
-    const captureOrderURLTemplate = "{% url 'payment:capture_order' order_id='0' %}";
+const createOrderURLTemplate = "{% url 'payment:create_order' object_id=0 %}";
+const captureOrderURLTemplate = "{% url 'payment:capture_order' order_id='0' %}";
 
-    const createOrderURL = createOrderURLTemplate.replace("0", object_id);
-    paypal.Buttons({
-        createOrder: function (data, actions) {
-            return fetch(createOrderURL, {
-                method: "POST",
-            })
-                    .then((response) => response.json())
-                    .then((order) => order.id);
-        },
+const createOrderURL = createOrderURLTemplate.replace("0", object_id);
+let funding_source = "paypal";
+paypal.Buttons({
+    onClick: function (data, actions) {
+        const fundingSource_ = data["fundingSource"]
+        console.log("New funding source selected", fundingSource_);
+        funding_source = fundingSource_;
+    },
+createOrder: function (data, actions) {
+    console.log("Inside createOrder, funding source is still ", funding_source);
+const createOrderURLWithFundingSource = `${createOrderURL}?funding_source=${funding_source}`;
+    return fetch(createOrderURLWithFundingSource, {
+        method: "POST",
+    })
+            .then((response) => response.json())
+            .then((order) => {
+                console.log("The order", order, JSON.stringify(order, null, 2));
 
-        onApprove: function (data, actions) {
-            const captureOrderURL = captureOrderURLTemplate.replace("0", data.orderID);
+                const salesTaxField = document.getElementById("sales-tax-field");
+                salesTaxField.textContent = `$${order.fee}`;
 
-            return fetch(captureOrderURL, {
-                method: "POST",
-            })
-                    .then((response) => response.json())
-                    .then((orderData) => {
-                        console.log("Capture result", orderData, JSON.stringify(orderData, null, 2));
-                        window.location.href = `{% url 'payment:success_linked' object_id=object_id order_id='0' %}`.replace('/0', '/' + data.orderID);
-                    });
-        },
-    }).render("#paypal-button-container");
+                const salesTotalField = document.getElementById("sales-total-amount");
+                salesTotalField.textContent = `$${order.total_amount}`;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const messageElements = document.querySelectorAll('.alert-dismissible');
-        setTimeout(function () {
-            messageElements.forEach(function (element) {
-                element.style.display = 'none';
+                return order.id;
             });
-        }, 3000);
-    });
+},
+
+    onApprove: function (data, actions) {
+        const captureOrderURL = captureOrderURLTemplate.replace("0", data.orderID);
+
+        return fetch(captureOrderURL, {
+            method: "POST",
+        })
+                .then((response) => response.json())
+                .then((orderData) => {
+                    console.log("Capture result", orderData, JSON.stringify(orderData, null, 2));
+                    window.location.href = `{% url 'payment:success_linked' object_id=object_id order_id='0' %}`.replace('/0', '/' + data.orderID);
+                });
+    },
+}).render("#paypal-button-container");
+
+document.addEventListener('DOMContentLoaded', function () {
+    const messageElements = document.querySelectorAll('.alert-dismissible');
+    setTimeout(function () {
+        messageElements.forEach(function (element) {
+            element.style.display = 'none';
+        });
+    }, 3000);
+});
 </script>
 
 {% endblock %}

@@ -1,4 +1,14 @@
-# Django Payment App
+# Django Payment Manager
+
+![Tests](https://github.com/adamspd/django-appointment/actions/workflows/tests.yml/badge.svg)
+![Published on PyPi](https://github.com/adamspd/django-appointment/actions/workflows/publish.yml/badge.svg)
+[![PyPI version](https://badge.fury.io/py/django-payment-manager.svg)](https://badge.fury.io/py/django-payment-manager)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/adamspd/django-payment)](https://github.com/adamspd/django-payment/commits/main)
+[![GitHub last commit](https://img.shields.io/github/last-commit/adamspd/django-payment)](https://github.com/adamspd/django-payment/commit/main)
+[![GitHub issues](https://img.shields.io/github/issues/adamspd/django-payment)](https://github.com/adamspd/django-payment/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/adamspd/django-payment)](https://github.com/adamspd/django-payment/pulls)
+[![GitHub contributors](https://img.shields.io/github/contributors/adamspd/django-payment)](https://github.com/adamspd/django-payment/graphs/contributors)
 
 This is a Django payment application that allows you to easily integrate with PayPal to accept payments. This app is
 designed to be flexible, allowing you to collect payments for any type of service or product.
@@ -83,6 +93,8 @@ INSTALLED_APPS = [
     'payment',
 ]
 ```
+
+If need be, the url used as entry point to the application is `payment:payment_linked`.
 
 ```python
 # settings.py
